@@ -83,7 +83,7 @@ format asks for one — a value that narrow is written as a fixed byte.
 ## Tests
 
 ```
-novo test src/zigzag_tests.nv
+novo test tests/zigzag_tests.nv
 ```
 
 The vectors are the ones Protocol Buffers publishes for `sint32` and

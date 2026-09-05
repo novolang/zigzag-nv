@@ -4,7 +4,10 @@ version     = "0.1.0"
 description = "ZigZag folding of signed integers onto unsigned ones, at 32 and 64 bits, so a varint encoder spends bytes on a number's magnitude rather than on its sign.  The transform Protocol Buffers applies before writing an sint32 or sint64."
 license     = "Apache-2.0"
 stability   = "experimental"
-keywords    = ["zigzag", "varint", "protobuf", "encoding"]
+category    = "encoding"
+tags        = ["zigzag", "varint", "protobuf"]
+repository  = "https://github.com/novolang/zigzag-nv"
+maintainers = ["novo-lang"]
 main        = "src/main.nv"
 
 # The README is the package's one page, and its own first heading is the

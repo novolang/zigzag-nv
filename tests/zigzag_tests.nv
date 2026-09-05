@@ -2,7 +2,7 @@
 // documentation, both range ends, and the round trip.
 //
 // Run from the package directory:
-//   novo test src/zigzag_tests.nv
+//   novo test tests/zigzag_tests.nv
 //
 // The vectors are the ones Protocol Buffers publishes for `sint32` and
 // `sint64`, so the suite is evidence that this fold is the same fold
