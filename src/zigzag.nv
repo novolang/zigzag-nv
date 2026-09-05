@@ -1,0 +1,76 @@
+// ZigZag — folding a signed integer onto an unsigned one so that small
+// negatives stay small.
+//
+// What it is.  A varint encoder spends one byte per seven bits, so it
+// is cheap for small numbers and expensive for large ones.  Two's
+// complement makes every negative number large: -1 is sixty-four set
+// bits, and costs ten bytes.  ZigZag renumbers the integers so that the
+// order runs 0, -1, 1, -2, 2, … — a number's magnitude, not its sign,
+// decides its size.  It is what Protocol Buffers applies before writing
+// an `sint32` or `sint64`.
+//
+// What it does.  Four functions: fold and unfold, at 32 and at 64 bits.
+// The fold is `(n << 1) ^ (n >> width - 1)` with an arithmetic right
+// shift, which is one shift, one shift and one xor — no branch, so it
+// costs the same for every input.
+//
+// How to use it.  Fold before encoding, unfold after decoding:
+//
+//     let wire = leb128.encode(zigzag.encode64(-1))    // 01
+//     let back = zigzag.decode64(leb128.decode(wire)!) // -1
+//
+// What it costs.  Three instructions each way and no memory at all.
+// The whole module is arithmetic on `Int`: no buffer, no allocation,
+// nothing that needs a heap, and nothing to configure.
+//
+// A word on the two widths.  `encode64` answers the bit pattern of a
+// u64, so half its range comes back as a negative `Int` — 2^63 folds to
+// 2^64 - 2, which is `Int`'s -2.  `encode32` answers a value in
+// `0 .. 2^32 - 1`, which fits an `Int` with room to spare and is
+// therefore always non-negative.  The pair is exact in both directions
+// over its own width; feeding `encode32` a number outside the signed
+// 32-bit range is a caller error, and `fits32` is there to ask.
+
+use std.bits
+
+// The lowest and highest values `encode32` / `decode32` are defined
+// over — the signed 32-bit range, as Protocol Buffers' `sint32` has it.
+pub fn min32() -> Int
+    0 - 2147483648
+
+// The top of the signed 32-bit range.
+pub fn max32() -> Int
+    2147483647
+
+// Whether `n` is inside the range the 32-bit pair is defined over.  The
+// check a caller makes once, at the edge where the number arrives.
+pub fn fits32(n: Int) -> Bool
+    n >= min32() and n <= max32()
+
+// `n` folded onto `0 .. 2^64 - 1`, as that value's bit pattern.  The
+// order is 0, -1, 1, -2, 2, …, so a small magnitude encodes short
+// whatever its sign.
+pub fn encode64(n: Int) -> Int
+    // The arithmetic shift is the whole trick: it is 0 for a
+    // non-negative `n` and all ones for a negative one, so the xor
+    // flips every bit of the doubled value exactly when `n` is
+    // negative.
+    bits.xor(bits.shl(n, 1), bits.asr(n, 63))
+
+// The inverse of `encode64`: `u` read as an unsigned 64-bit number,
+// unfolded back to the signed value it came from.
+pub fn decode64(u: Int) -> Int
+    // A logical shift, because `u` is unsigned; the negated low bit is
+    // 0 or all ones and undoes the fold's xor.
+    bits.xor(bits.shr(u, 1), 0 - bits.band(u, 1))
+
+// `n` folded onto `0 .. 2^32 - 1`.  Defined over the signed 32-bit
+// range — see `fits32` — and always answers a non-negative `Int`.
+pub fn encode32(n: Int) -> Int
+    // Masked to 32 bits, because the doubling of a 32-bit value reaches
+    // bit 32 and the sign smear reaches every bit above it.
+    bits.band(bits.xor(bits.shl(n, 1), bits.asr(n, 31)), 0xffffffff)
+
+// The inverse of `encode32`: `u` read as an unsigned 32-bit number.
+pub fn decode32(u: Int) -> Int
+    bits.xor(bits.shr(bits.band(u, 0xffffffff), 1), 0 - bits.band(u, 1))

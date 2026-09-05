@@ -1,0 +1,102 @@
+// zigzag_tests.nv — the table from the Protocol Buffers encoding
+// documentation, both range ends, and the round trip.
+//
+// Run from the package directory:
+//   novo test src/zigzag_tests.nv
+//
+// The vectors are the ones Protocol Buffers publishes for `sint32` and
+// `sint64`, so the suite is evidence that this fold is the same fold
+// every other implementation uses, not merely a self-consistent one.
+
+use std.test
+use zigzag
+
+@test
+fn test_the_protobuf_table_at_32_bits() [io]
+    // The order the fold produces: 0, -1, 1, -2, 2, …
+    test.assert_eq(zigzag.encode32(0), 0)
+    test.assert_eq(zigzag.encode32(0 - 1), 1)
+    test.assert_eq(zigzag.encode32(1), 2)
+    test.assert_eq(zigzag.encode32(0 - 2), 3)
+    test.assert_eq(zigzag.encode32(2), 4)
+
+@test
+fn test_the_protobuf_table_at_the_32_bit_ends() [io]
+    test.assert_eq(zigzag.encode32(zigzag.max32()), 4294967294)
+    test.assert_eq(zigzag.encode32(zigzag.min32()), 4294967295)
+    test.assert_eq(zigzag.decode32(4294967294), zigzag.max32())
+    test.assert_eq(zigzag.decode32(4294967295), zigzag.min32())
+
+@test
+fn test_the_protobuf_table_at_64_bits() [io]
+    test.assert_eq(zigzag.encode64(0), 0)
+    test.assert_eq(zigzag.encode64(0 - 1), 1)
+    test.assert_eq(zigzag.encode64(1), 2)
+    test.assert_eq(zigzag.encode64(0 - 2), 3)
+    test.assert_eq(zigzag.encode64(2), 4)
+
+@test
+fn test_the_64_bit_ends_fold_to_the_top_of_the_unsigned_range() [io]
+    // 2^63 - 1 folds to 2^64 - 2 and -2^63 to 2^64 - 1; both are above
+    // 2^63, so both come back as the negative `Int` with that bit
+    // pattern.  -1 and -2 are exactly those two patterns.
+    let max64 = bits.shr(0 - 1, 1)
+    let min64 = bits.shl(1, 63)
+    test.assert_eq(zigzag.encode64(max64), 0 - 2)
+    test.assert_eq(zigzag.encode64(min64), 0 - 1)
+    test.assert_eq(zigzag.decode64(0 - 2), max64)
+    test.assert_eq(zigzag.decode64(0 - 1), min64)
+
+@test
+fn test_the_fold_interleaves_the_signs() [io]
+    // A magnitude's two values land next to each other: -k on 2k - 1
+    // and k on 2k.  That interleaving is the property the encoding
+    // rests on, and it is what a sign-extending fold would break.
+    for k in 1 .. 32
+        test.case("magnitude ${k}")
+        test.assert_eq(zigzag.encode64(0 - k), 2 * k - 1)
+        test.assert_eq(zigzag.encode64(k), 2 * k)
+
+@test
+fn test_round_trip_over_the_powers_of_two_at_64_bits() [io]
+    for shift in 0 .. 62
+        let n = bits.shl(1, shift)
+        test.case("1 << ${shift}")
+        test.assert_eq(zigzag.decode64(zigzag.encode64(n)), n)
+        test.assert_eq(zigzag.decode64(zigzag.encode64(0 - n)), 0 - n)
+
+@test
+fn test_round_trip_over_the_powers_of_two_at_32_bits() [io]
+    for shift in 0 .. 31
+        let n = bits.shl(1, shift)
+        test.case("1 << ${shift}")
+        test.assert_eq(zigzag.decode32(zigzag.encode32(n)), n)
+        test.assert_eq(zigzag.decode32(zigzag.encode32(0 - n)), 0 - n)
+
+@test
+fn test_the_32_bit_fold_stays_inside_32_bits() [io]
+    // Nothing the 32-bit fold produces may reach bit 32; a value that
+    // did would be a different number to every other implementation.
+    for shift in 0 .. 31
+        let n = bits.shl(1, shift)
+        test.case("1 << ${shift}")
+        test.assert_true(zigzag.encode32(n) <= 4294967295, "positive fold left 32 bits")
+        test.assert_true(zigzag.encode32(0 - n) <= 4294967295, "negative fold left 32 bits")
+
+@test
+fn test_fits32_names_the_range_the_32_bit_pair_is_defined_over() [io]
+    test.assert_eq(zigzag.fits32(zigzag.min32()), true)
+    test.assert_eq(zigzag.fits32(zigzag.max32()), true)
+    test.assert_eq(zigzag.fits32(zigzag.min32() - 1), false)
+    test.assert_eq(zigzag.fits32(zigzag.max32() + 1), false)
+
+@test
+fn test_the_two_widths_agree_wherever_both_are_defined() [io]
+    // Inside the signed 32-bit range the two folds must produce the
+    // same number, because they are the same renumbering — one just
+    // has more room above it.
+    for shift in 0 .. 31
+        let n = bits.shl(1, shift)
+        test.case("1 << ${shift}")
+        test.assert_eq(zigzag.encode32(n), zigzag.encode64(n))
+        test.assert_eq(zigzag.encode32(0 - n), zigzag.encode64(0 - n))

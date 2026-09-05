@@ -1,0 +1,16 @@
+[package]
+name        = "zigzag-nv"
+version     = "0.1.0"
+description = "ZigZag folding of signed integers onto unsigned ones, at 32 and 64 bits, so a varint encoder spends bytes on a number's magnitude rather than on its sign.  The transform Protocol Buffers applies before writing an sint32 or sint64."
+license     = "Apache-2.0"
+stability   = "experimental"
+keywords    = ["zigzag", "varint", "protobuf", "encoding"]
+main        = "src/main.nv"
+
+# The README is the package's one page, and its own first heading is the
+# package name — which says nothing in a list of this package's pages.
+[docs.pages]
+"README.md" = "Folding signed integers onto unsigned ones"
+
+[dependencies]
+# None.  std.bits supplies the shifts; the rest is arithmetic.
