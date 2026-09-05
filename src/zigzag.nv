@@ -10,8 +10,8 @@
 // an `sint32` or `sint64`.
 //
 // What it does.  Four functions: fold and unfold, at 32 and at 64 bits.
-// The fold is `(n << 1) ^ (n >> width - 1)` with an arithmetic right
-// shift, which is one shift, one shift and one xor — no branch, so it
+// The fold is `(n << 1) ^ (n >> width - 1)`, where `>>` is arithmetic
+// on a signed operand — two shifts and one xor, with no branch, so it
 // costs the same for every input.
 //
 // How to use it.  Fold before encoding, unfold after decoding:
@@ -30,8 +30,6 @@
 // therefore always non-negative.  The pair is exact in both directions
 // over its own width; feeding `encode32` a number outside the signed
 // 32-bit range is a caller error, and `fits32` is there to ask.
-
-use std.bits
 
 // The lowest and highest values `encode32` / `decode32` are defined
 // over — the signed 32-bit range, as Protocol Buffers' `sint32` has it.
@@ -55,22 +53,23 @@ pub fn encode64(n: Int) -> Int
     // non-negative `n` and all ones for a negative one, so the xor
     // flips every bit of the doubled value exactly when `n` is
     // negative.
-    bits.xor(bits.shl(n, 1), bits.asr(n, 63))
+    (n << 1) ^ (n >> 63)
 
 // The inverse of `encode64`: `u` read as an unsigned 64-bit number,
 // unfolded back to the signed value it came from.
 pub fn decode64(u: Int) -> Int
-    // A logical shift, because `u` is unsigned; the negated low bit is
-    // 0 or all ones and undoes the fold's xor.
-    bits.xor(bits.shr(u, 1), 0 - bits.band(u, 1))
+    // `>>>`, the logical shift, because `u` is unsigned and `>>` would
+    // carry a sign the value does not have.  The negated low bit is 0
+    // or all ones and undoes the fold's xor.
+    (u >>> 1) ^ -(u & 1)
 
 // `n` folded onto `0 .. 2^32 - 1`.  Defined over the signed 32-bit
 // range — see `fits32` — and always answers a non-negative `Int`.
 pub fn encode32(n: Int) -> Int
     // Masked to 32 bits, because the doubling of a 32-bit value reaches
     // bit 32 and the sign smear reaches every bit above it.
-    bits.band(bits.xor(bits.shl(n, 1), bits.asr(n, 31)), 0xffffffff)
+    ((n << 1) ^ (n >> 31)) & 0xffffffff
 
 // The inverse of `encode32`: `u` read as an unsigned 32-bit number.
 pub fn decode32(u: Int) -> Int
-    bits.xor(bits.shr(bits.band(u, 0xffffffff), 1), 0 - bits.band(u, 1))
+    ((u & 0xffffffff) >>> 1) ^ -(u & 1)

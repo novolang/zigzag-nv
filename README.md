@@ -68,6 +68,16 @@ it.
 
 ## What it costs
 
+The whole implementation, at 64 bits:
+
+```novo norun:fragment
+fn encode64(n: Int) -> Int
+    (n << 1) ^ (n >> 63)
+
+fn decode64(u: Int) -> Int
+    (u >>> 1) ^ -(u & 1)
+```
+
 One left shift, one arithmetic right shift and one xor each way, plus a
 mask at 32 bits. No branch, so every input costs the same. No buffer,
 no allocation and no state: the module is arithmetic on `Int`, which is

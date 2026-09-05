@@ -40,8 +40,11 @@ fn test_the_64_bit_ends_fold_to_the_top_of_the_unsigned_range() [io]
     // 2^63 - 1 folds to 2^64 - 2 and -2^63 to 2^64 - 1; both are above
     // 2^63, so both come back as the negative `Int` with that bit
     // pattern.  -1 and -2 are exactly those two patterns.
-    let max64 = bits.shr(0 - 1, 1)
-    let min64 = bits.shl(1, 63)
+    // `>>` and `<<` bind LOOSER than `-`, so the all-ones pattern is
+    // named rather than written inline as `0 - 1 >>> 1`.
+    let all_ones = 0 - 1
+    let max64 = all_ones >>> 1
+    let min64 = 1 << 63
     test.assert_eq(zigzag.encode64(max64), 0 - 2)
     test.assert_eq(zigzag.encode64(min64), 0 - 1)
     test.assert_eq(zigzag.decode64(0 - 2), max64)
@@ -60,7 +63,7 @@ fn test_the_fold_interleaves_the_signs() [io]
 @test
 fn test_round_trip_over_the_powers_of_two_at_64_bits() [io]
     for shift in 0 .. 62
-        let n = bits.shl(1, shift)
+        let n = 1 << shift
         test.case("1 << ${shift}")
         test.assert_eq(zigzag.decode64(zigzag.encode64(n)), n)
         test.assert_eq(zigzag.decode64(zigzag.encode64(0 - n)), 0 - n)
@@ -68,7 +71,7 @@ fn test_round_trip_over_the_powers_of_two_at_64_bits() [io]
 @test
 fn test_round_trip_over_the_powers_of_two_at_32_bits() [io]
     for shift in 0 .. 31
-        let n = bits.shl(1, shift)
+        let n = 1 << shift
         test.case("1 << ${shift}")
         test.assert_eq(zigzag.decode32(zigzag.encode32(n)), n)
         test.assert_eq(zigzag.decode32(zigzag.encode32(0 - n)), 0 - n)
@@ -78,7 +81,7 @@ fn test_the_32_bit_fold_stays_inside_32_bits() [io]
     // Nothing the 32-bit fold produces may reach bit 32; a value that
     // did would be a different number to every other implementation.
     for shift in 0 .. 31
-        let n = bits.shl(1, shift)
+        let n = 1 << shift
         test.case("1 << ${shift}")
         test.assert_true(zigzag.encode32(n) <= 4294967295, "positive fold left 32 bits")
         test.assert_true(zigzag.encode32(0 - n) <= 4294967295, "negative fold left 32 bits")
@@ -96,7 +99,7 @@ fn test_the_two_widths_agree_wherever_both_are_defined() [io]
     // same number, because they are the same renumbering — one just
     // has more room above it.
     for shift in 0 .. 31
-        let n = bits.shl(1, shift)
+        let n = 1 << shift
         test.case("1 << ${shift}")
         test.assert_eq(zigzag.encode32(n), zigzag.encode64(n))
         test.assert_eq(zigzag.encode32(0 - n), zigzag.encode64(0 - n))
