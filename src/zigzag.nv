@@ -14,10 +14,12 @@
 // on a signed operand — two shifts and one xor, with no branch, so it
 // costs the same for every input.
 //
-// How to use it.  Fold before encoding, unfold after decoding:
+// How to use it.  Fold before encoding, unfold after decoding.  The
+// pairing is with a varint encoder, which this package does not depend
+// on, so the two lines are a sketch rather than a checked example:
 //
-//     let wire = leb128.encode(zigzag.encode64(-1))    // 01
-//     let back = zigzag.decode64(leb128.decode(wire)!) // -1
+//     let wire = leb128.encode(zigzag.encode64(0 - 1))  // one byte: 01
+//     let back = zigzag.decode64(leb128.decode(wire)!)  // -1
 //
 // What it costs.  Three instructions each way and no memory at all.
 // The whole module is arithmetic on `Int`: no buffer, no allocation,
@@ -31,23 +33,57 @@
 // over its own width; feeding `encode32` a number outside the signed
 // 32-bit range is a caller error, and `fits32` is there to ask.
 
-// The lowest and highest values `encode32` / `decode32` are defined
-// over — the signed 32-bit range, as Protocol Buffers' `sint32` has it.
+// Answer the bottom of the signed 32-bit range, `-2^31`.
+//
+// The lowest value `encode32` and `decode32` are defined over, as
+// Protocol Buffers' `sint32` has it.  It is a function rather than a
+// literal repeated at each call site so that a bounds check reads as
+// the check it is; `fits32` asks about both ends at once and carries
+// the example.
 pub fn min32() -> Int
     0 - 2147483648
 
-// The top of the signed 32-bit range.
+// Answer the top of the signed 32-bit range, `2^31 - 1`.
+//
+// The other end of what the 32-bit pair is defined over.  See `fits32`.
 pub fn max32() -> Int
     2147483647
 
-// Whether `n` is inside the range the 32-bit pair is defined over.  The
-// check a caller makes once, at the edge where the number arrives.
+// Answer whether `n` is inside the range the 32-bit pair is defined
+// over — the check a caller makes once, where the number arrives.
+//
+// `encode32` does not check, and cannot usefully: it masks to 32 bits,
+// so an out-of-range input folds to a number that is perfectly
+// well-formed and means something else to every other implementation.
+// Nothing downstream would notice, which is why the question belongs
+// here.  The 64-bit pair needs no such check — every `Int` is in range.
+//
+// ```novo
+// println("${zigzag.fits32(zigzag.min32())}")        // true
+// println("${zigzag.fits32(zigzag.max32())}")        // true
+// println("${zigzag.fits32(zigzag.max32() + 1)}")    // false
+// ```
 pub fn fits32(n: Int) -> Bool
     n >= min32() and n <= max32()
 
-// `n` folded onto `0 .. 2^64 - 1`, as that value's bit pattern.  The
-// order is 0, -1, 1, -2, 2, …, so a small magnitude encodes short
-// whatever its sign.
+// Fold `n` onto `0 .. 2^64 - 1`, and answer that value's bit pattern.
+//
+// The order is 0, -1, 1, -2, 2, …, so a small magnitude encodes short
+// whatever its sign — which is the whole reason to fold before a
+// varint.  Every `Int` is in range and nothing is refused.  The upper
+// half of the folded values is above 2^63 and therefore comes back as
+// the negative `Int` holding that bit pattern; those are the same 64
+// bits every other implementation writes, and `decode64` reads them
+// back exactly.
+//
+// ```novo
+// // The renumbering: 0, -1, 1, -2 fold to 0, 1, 2, 3.
+// println("${zigzag.encode64(0)} ${zigzag.encode64(0 - 1)}")   // 0 1
+// println("${zigzag.encode64(1)} ${zigzag.encode64(0 - 2)}")   // 2 3
+//
+// // The round trip, which is what a caller depends on.
+// println("${zigzag.decode64(zigzag.encode64(0 - 4096))}")     // -4096
+// ```
 pub fn encode64(n: Int) -> Int
     // The arithmetic shift is the whole trick: it is 0 for a
     // non-negative `n` and all ones for a negative one, so the xor
@@ -55,21 +91,62 @@ pub fn encode64(n: Int) -> Int
     // negative.
     (n << 1) ^ (n >> 63)
 
-// The inverse of `encode64`: `u` read as an unsigned 64-bit number,
-// unfolded back to the signed value it came from.
+// Unfold `u`, read as an unsigned 64-bit number, back to the signed
+// value `encode64` folded onto it.
+//
+// The exact inverse of `encode64` over all 2^64 patterns, so nothing is
+// refused: every 64-bit number is some integer's fold, and there is no
+// input this cannot answer.  An odd `u` unfolds to a negative number
+// and an even one to a non-negative number, which is how a reader can
+// tell the sign of a wire value by eye.
+//
+// ```novo
+// // A varint carrying 1 is the signed value -1 — one byte, not ten.
+// println("${zigzag.decode64(1)}")    // -1
+// println("${zigzag.decode64(4)}")    // 2
+// ```
 pub fn decode64(u: Int) -> Int
     // `>>>`, the logical shift, because `u` is unsigned and `>>` would
     // carry a sign the value does not have.  The negated low bit is 0
     // or all ones and undoes the fold's xor.
     (u >>> 1) ^ -(u & 1)
 
-// `n` folded onto `0 .. 2^32 - 1`.  Defined over the signed 32-bit
-// range — see `fits32` — and always answers a non-negative `Int`.
+// Fold `n` onto `0 .. 2^32 - 1`, the 32-bit half of the same
+// renumbering.
+//
+// Defined over the signed 32-bit range and always non-negative, because
+// a folded 32-bit value has room above it in an `Int`.  Inside that
+// range it agrees with `encode64` exactly — the two are one
+// renumbering, one of them with more room above it.  Outside it the
+// result is masked to 32 bits and means something else, so `fits32` is
+// the question to ask before calling.
+//
+// ```novo
+// println("${zigzag.encode32(0 - 1)}")                // 1
+//
+// // Both ends of the range, from Protocol Buffers' table.
+// println("${zigzag.encode32(zigzag.max32())}")       // 4294967294
+// println("${zigzag.encode32(zigzag.min32())}")       // 4294967295
+//
+// // One renumbering: the widths agree wherever both are defined.
+// println("${zigzag.encode32(0 - 12345) == zigzag.encode64(0 - 12345)}")   // true
+// ```
 pub fn encode32(n: Int) -> Int
     // Masked to 32 bits, because the doubling of a 32-bit value reaches
     // bit 32 and the sign smear reaches every bit above it.
     ((n << 1) ^ (n >> 31)) & 0xffffffff
 
-// The inverse of `encode32`: `u` read as an unsigned 32-bit number.
+// Unfold `u`, read as an unsigned 32-bit number, back to the signed
+// value `encode32` folded onto it.
+//
+// The inverse of `encode32` over the whole 32-bit range.  Bits above 32
+// are masked away rather than trusted, so a value that arrived
+// sign-extended from some other decoder unfolds to the number it meant
+// rather than to a large negative one.
+//
+// ```novo
+// println("${zigzag.decode32(4294967295)}")               // -2147483648
+// println("${zigzag.decode32(zigzag.encode32(0 - 7))}")   // -7
+// ```
 pub fn decode32(u: Int) -> Int
     ((u & 0xffffffff) >>> 1) ^ -(u & 1)

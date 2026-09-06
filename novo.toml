@@ -1,6 +1,6 @@
 [package]
 name        = "zigzag-nv"
-version     = "0.1.2"
+version     = "0.1.3"
 description = "ZigZag folding of signed integers onto unsigned ones, at 32 and 64 bits, so a varint encoder spends bytes on a number's magnitude rather than on its sign.  The transform Protocol Buffers applies before writing an sint32 or sint64."
 license     = "Apache-2.0"
 stability   = "experimental"
