@@ -1,4 +1,6 @@
-> Developed in the novo-lang monorepo under `orbit/zigzag-nv`, which is the source of truth until this package graduates out of it.  This repository is a mirror: it is where CI runs and where releases are tagged, and changes are made upstream.
+> `zigzag-nv` is developed and published from this repository.  It began in
+> the novo-lang monorepo under `orbit/zigzag-nv` and graduated out of it with
+> its history; issues and pull requests belong here.
 
 # zigzag-nv
 
