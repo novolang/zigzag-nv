@@ -26,14 +26,11 @@ novo pkg add zigzag-nv
 
 ## What it gives you
 
-| Function | |
-|---|---|
-| `zigzag.encode64(n: Int) -> Int` | `n` folded onto `0 .. 2^64 - 1`, as that value's bit pattern |
-| `zigzag.decode64(u: Int) -> Int` | the inverse, reading `u` as unsigned 64-bit |
-| `zigzag.encode32(n: Int) -> Int` | `n` folded onto `0 .. 2^32 - 1` |
-| `zigzag.decode32(u: Int) -> Int` | the inverse, reading `u` as unsigned 32-bit |
-| `zigzag.fits32(n: Int) -> Bool` | whether `n` is in the range the 32-bit pair is defined over |
-| `zigzag.min32() / max32() -> Int` | that range's ends |
+The API is on [the package's page](https://novo-lang.org/packages/zigzag-nv),
+generated from these sources: every `pub` declaration with its signature,
+its effect row and the comment block written above it. A table of names
+here would be a second original, and the second original is the one that
+goes stale.
 
 ## Folding before a varint
 
