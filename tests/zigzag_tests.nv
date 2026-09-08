@@ -55,14 +55,14 @@ fn test_the_fold_interleaves_the_signs() [io]
     // A magnitude's two values land next to each other: -k on 2k - 1
     // and k on 2k.  That interleaving is the property the encoding
     // rests on, and it is what a sign-extending fold would break.
-    for k in 1 .. 32
+    for k in 1..32
         test.case("magnitude ${k}")
         test.assert_eq(zigzag.encode64(0 - k), 2 * k - 1)
         test.assert_eq(zigzag.encode64(k), 2 * k)
 
 @test
 fn test_round_trip_over_the_powers_of_two_at_64_bits() [io]
-    for shift in 0 .. 62
+    for shift in 0..62
         let n = 1 << shift
         test.case("1 << ${shift}")
         test.assert_eq(zigzag.decode64(zigzag.encode64(n)), n)
@@ -70,7 +70,7 @@ fn test_round_trip_over_the_powers_of_two_at_64_bits() [io]
 
 @test
 fn test_round_trip_over_the_powers_of_two_at_32_bits() [io]
-    for shift in 0 .. 31
+    for shift in 0..31
         let n = 1 << shift
         test.case("1 << ${shift}")
         test.assert_eq(zigzag.decode32(zigzag.encode32(n)), n)
@@ -80,7 +80,7 @@ fn test_round_trip_over_the_powers_of_two_at_32_bits() [io]
 fn test_the_32_bit_fold_stays_inside_32_bits() [io]
     // Nothing the 32-bit fold produces may reach bit 32; a value that
     // did would be a different number to every other implementation.
-    for shift in 0 .. 31
+    for shift in 0..31
         let n = 1 << shift
         test.case("1 << ${shift}")
         test.assert_true(zigzag.encode32(n) <= 4294967295, "positive fold left 32 bits")
@@ -98,7 +98,7 @@ fn test_the_two_widths_agree_wherever_both_are_defined() [io]
     // Inside the signed 32-bit range the two folds must produce the
     // same number, because they are the same renumbering — one just
     // has more room above it.
-    for shift in 0 .. 31
+    for shift in 0..31
         let n = 1 << shift
         test.case("1 << ${shift}")
         test.assert_eq(zigzag.encode32(n), zigzag.encode64(n))
