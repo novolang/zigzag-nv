@@ -1,20 +1,29 @@
 [package]
 name        = "zigzag-nv"
-version     = "0.1.4"
+version     = "0.1.5"
 description = "ZigZag folding of signed integers onto unsigned ones, at 32 and 64 bits, so a varint encoder spends bytes on a number's magnitude rather than on its sign.  The transform Protocol Buffers applies before writing an sint32 or sint64."
 license     = "Apache-2.0"
+
+# `experimental` because no program outside this repository has used the
+# package yet, and the tests exercise the functions rather than a
+# consumer's use of them.
 stability   = "experimental"
+
 category    = "encoding"
+
+# `core`: every function is arithmetic on an `Int` the caller holds, so
+# no public function declares an effect.
 layer       = "core"
 tags        = ["zigzag", "varint", "protobuf"]
 repository  = "https://github.com/novolang/zigzag-nv"
 maintainers = ["novo-lang"]
 main        = "src/main.nv"
 
-# The README is the package's one page, and its own first heading is the
-# package name — which says nothing in a list of this package's pages.
+# The README is the package's one page.  Its own first heading is the
+# package name, which says nothing in a list of this package's pages, so
+# the line below is what a reader sees there instead.
 [docs.pages]
 "README.md" = "Folding signed integers onto unsigned ones"
 
 [dependencies]
-# None.  The shifts and masks are operators; the rest is arithmetic.
+# None.  The shifts and masks are operators, and the rest is arithmetic.

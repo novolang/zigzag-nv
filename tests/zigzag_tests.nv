@@ -1,12 +1,13 @@
-// zigzag_tests.nv — the table from the Protocol Buffers encoding
-// documentation, both range ends, and the round trip.
+// The tests over the table from the Protocol Buffers encoding
+// documentation, both ends of each range, and the round trip.
 //
-// Run from the package directory:
+// Run the suite from the package directory.
+//
 //   novo test tests/zigzag_tests.nv
 //
 // The vectors are the ones Protocol Buffers publishes for `sint32` and
-// `sint64`, so the suite is evidence that this fold is the same fold
-// every other implementation uses, not merely a self-consistent one.
+// `sint64`, so a pass shows that this fold is the fold other
+// implementations use, and not only one that reads back its own output.
 
 use std.test
 use zigzag
@@ -37,11 +38,11 @@ fn test_the_protobuf_table_at_64_bits() [io]
 
 @test
 fn test_the_64_bit_ends_fold_to_the_top_of_the_unsigned_range() [io]
-    // 2^63 - 1 folds to 2^64 - 2 and -2^63 to 2^64 - 1; both are above
+    // 2^63 - 1 folds to 2^64 - 2 and -2^63 to 2^64 - 1.  Both are above
     // 2^63, so both come back as the negative `Int` with that bit
-    // pattern.  -1 and -2 are exactly those two patterns.
-    // `>>` and `<<` bind LOOSER than `-`, so the all-ones pattern is
-    // named rather than written inline as `0 - 1 >>> 1`.
+    // pattern, which is -2 and -1.  `>>` and `<<` bind more loosely than
+    // `-`, so the all-ones pattern is named rather than written inline
+    // as `0 - 1 >>> 1`.
     let all_ones = 0 - 1
     let max64 = all_ones >>> 1
     let min64 = 1 << 63
@@ -78,8 +79,8 @@ fn test_round_trip_over_the_powers_of_two_at_32_bits() [io]
 
 @test
 fn test_the_32_bit_fold_stays_inside_32_bits() [io]
-    // Nothing the 32-bit fold produces may reach bit 32; a value that
-    // did would be a different number to every other implementation.
+    // Nothing the 32-bit fold produces reaches bit 32.  A value that did
+    // would be a different number to every other implementation.
     for shift in 0..31
         let n = 1 << shift
         test.case("1 << ${shift}")
@@ -95,9 +96,9 @@ fn test_fits32_names_the_range_the_32_bit_pair_is_defined_over() [io]
 
 @test
 fn test_the_two_widths_agree_wherever_both_are_defined() [io]
-    // Inside the signed 32-bit range the two folds must produce the
-    // same number, because they are the same renumbering — one just
-    // has more room above it.
+    // Inside the signed 32-bit range the two folds produce the same
+    // number, because they are the same renumbering and one of them has
+    // more room above it.
     for shift in 0..31
         let n = 1 << shift
         test.case("1 << ${shift}")
